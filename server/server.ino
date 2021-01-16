@@ -2,6 +2,7 @@
 #include <ObirEthernet.h>
 #include <ObirEthernetUdp.h>
 
+#include "coap.h"
 
 #define UDP_SERVER_PORT 1234
 #define PACKET_BUFFER_LEN 50
@@ -13,6 +14,17 @@ uint8_t packetBuffer [PACKET_BUFFER_LEN];
 ObirEthernetUDP Udp;
 
 int localport = UDP_SERVER_PORT;
+
+void PrintHeader(CoapHeader& header)
+{
+   Serial.println(F("----HEADER----"));
+   Serial.print(F("Ver: "));Serial.println(header.ver, DEC);
+   Serial.print(F("Type: "));Serial.println(header.type, DEC);
+   Serial.print(F("Token Length: "));Serial.println(header.tokenLen, DEC);
+   Serial.print(F("Code: "));Serial.print(header.coapClass, DEC);Serial.print(F("."));Serial.println(header.coapCode, DEC);
+   Serial.print(F("MessageID: "));Serial.print(header.mid, DEC);
+   Serial.println(F("--------------"));
+}
 
 void setup() {
   Serial.begin(115200);
@@ -52,6 +64,8 @@ void loop() {
       Serial.println(F("Type: NON"));
     }
 
+    
+
     uint8_t _token_len = (0xF & packetBuffer[0]);
     uint8_t _class = ((packetBuffer[1]>>5)&0x07);
     uint8_t _code = ((packetBuffer[1]>>0)&0x1F);
@@ -76,6 +90,10 @@ void loop() {
           Serial.print(F("Code: ")); Serial.print(_class, DEC); Serial.print(F(".0"));Serial.println(_code, DEC);
           Serial.print(F("Message ID: ")); Serial.println(_mid, DEC);
     
+   CoapHeader header(ver, type, _token_len, _class, _code, _mid);
 
+   PrintHeader(header);
+
+   
   }
 }
