@@ -39,5 +39,43 @@ void loop() {
 
     Serial.println(F("----------------MESSAGE--------------"));
     Serial.println((char*)packetBuffer);
+
+    uint8_t ver = (0xC0 & packetBuffer[0])>>6;
+    Serial.print(F("Coap ver: ")); Serial.println(ver, DEC);
+
+    uint8_t type = (0x30 & packetBuffer[0])>>4; // 1=NON, 0 =CON
+
+    if(type == 0){
+      Serial.println(F("Type: CON"));
+    }
+    if(type == 1){
+      Serial.println(F("Type: NON"));
+    }
+
+    uint8_t _token_len = (0xF & packetBuffer[0]);
+    uint8_t _class = ((packetBuffer[1]>>5)&0x07);
+    uint8_t _code = ((packetBuffer[1]>>0)&0x1F);
+    uint16_t _mid = (packetBuffer[2]<<8)|(packetBuffer[3]); //Message ID - ma 2 bajty
+    
+    uint8_t _token[_token_len]; //latwiej niz tworzyc 8 opcji roznych dlugosci int
+   
+    Serial.print(F("Token length: ")); Serial.println(_token_len, DEC);
+          //Zczytanie tokena:
+          if(_token_len > 0) 
+          {
+            Serial.println(F("Token: "));
+            for(int i = 0; i < _token_len; ++i)
+            {
+              _token[i] = packetBuffer[i + 4];
+              /*przepisujemy bajty*/
+              Serial.print(_token[i], HEX);Serial.print(F(" "));
+            }
+            Serial.println();
+          }
+          
+          Serial.print(F("Code: ")); Serial.print(_class, DEC); Serial.print(F(".0"));Serial.println(_code, DEC);
+          Serial.print(F("Message ID: ")); Serial.println(_mid, DEC);
+    
+
   }
 }
