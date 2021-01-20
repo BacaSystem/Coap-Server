@@ -39,3 +39,19 @@ class CoapHeader{
     CoapHeader(uint8_t ver, uint8_t type, uint8_t tokenLen, uint8_t coapClass, uint8_t coapCode, uint16_t mid);
 
 };
+
+class CoapOption{
+    public:
+        uint8_t number;
+        uint8_t length;
+        uint8_t* value;
+};
+
+class CoapMessage{
+    CoapHeader header;
+    uint8_t* token;
+    CoapOption options [6];
+
+    void AddOption();
+
+};
