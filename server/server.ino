@@ -2,6 +2,7 @@
 #include <ObirEthernet.h>    //biblioteka niezbedna dla klasy 'ObirEthernetUDP'
 #include <ObirEthernetUdp.h> //biblioteka z klasa 'ObirEthernetUDP'
 
+#include "resources.h"
 
 #include "coap.h" //biblioteka coap zawierajaca rozne typy zmiennych
 
@@ -17,6 +18,8 @@ uint8_t packetBuffer[PACKET_BUFFER_LEN]; //tablica o dlugosci pakietu
 ObirEthernetUDP Udp; //obiekt klasy 'ObirEthernetUDP'
 
 int localport = UDP_SERVER_PORT; //numer portu na jakim bedziemy nasluchiwac
+
+Resources resources;
 
 void PrintHeader(CoapHeader &header) //funkcja wypisujaca parametry obslugiwanych wiadomosci
 {
@@ -69,6 +72,8 @@ void loop()
                                                          //jesli jest <=0 to nic nie otrzymalismy
     int len = Udp.read(packetBuffer, PACKET_BUFFER_LEN); //odczytujemy pakiet(maksymalnie do liczby bajtów = PACKET_BUFER_LEN)
 
+    resources.Received(len);
+
     Serial.println(F("----------------MESSAGE--------------"));
     //Serial.println((char*)packetBuffer);
 
@@ -104,7 +109,7 @@ void loop()
 
     int marker = 4 + _token_len; // 4bajty naglowka + dlugosc tokena
 
-    int payloadMarker = -1;      //Znacznik polozenia payloadu (w bajtach)
+    int payloadMarker = -1; //Znacznik polozenia payloadu (w bajtach)
 
     /*Ustawiony na -1, zeby wykryc blad*/
 
@@ -123,16 +128,13 @@ void loop()
     uint8_t _uriPath[URIPATH_MAX_SIZE]; //Tablica na znaki w postaci liczb
     String uriPath = "";                //wl. URI; zaczyna od "NULL" zeby mozna bylo sprawdzic, czy URI w ogole byl obecny
 
-
-
-
     Serial.println(F("Options: "));
 
     while (packetBuffer[marker] != '\0') //Dopoki nie znajdzie sie payload albo nie skonczy ramka
     {
-      delta = (packetBuffer[marker] & 0xF0) >> 4;   //Maska na pierwsze 4 bity
+      delta = (packetBuffer[marker] & 0xF0) >> 4;  //Maska na pierwsze 4 bity
       optionLen = (packetBuffer[marker++] & 0x0F); //Maska na kolejne 4 bity
-            //marker++;                               //przesuniecie markera na nastepny bajt
+                                                   //marker++;                               //przesuniecie markera na nastepny bajt
 
       /*kiedy delta albo optionLength < 12, to jest brak rozszerzen; 
               Bajt markera oznacza wtedy wartosc opcji */
@@ -153,7 +155,8 @@ void loop()
         //++marker;
       }
 
-      else if (delta == 15){ //Trafiono na marker payloadu
+      else if (delta == 15)
+      { //Trafiono na marker payloadu
         payloadMarker = marker;
       }
 
@@ -166,14 +169,14 @@ void loop()
         if (optionLen == 13)
         {
           optionLen += packetBuffer[marker++];
-         // ++marker;
+          // ++marker;
         }
         else if (optionLen == 14)
         {
           optionLen = 269 + 256 * packetBuffer[marker++];
           //++marker;
           optionLen += packetBuffer[marker++];
-         // ++marker;
+          // ++marker;
         }
 
         optionNum += delta; //Numer opcji to nr poprzedniej+delta
@@ -194,30 +197,35 @@ void loop()
         if (optionNum == 11)
         //URI-path
         {
-          
+
           String tmp = "";
           Serial.println(F("Option URI-Path: "));
           for (int i = 0; i < optionLen; ++i)
           {
             _uriPath[i] = packetBuffer[marker++];
-            tmp += (char) _uriPath[i];
+            tmp += (char)_uriPath[i];
             //++marker;
           }
           //ArrayToString(tmp, _uriPath, optionLength);
 
           uriPath += '/';
-          uriPath += tmp;  //URI moze skladac sie z kilku segmentow
-          Serial.print(F("URI-Path: ")); Serial.println(uriPath);
+          uriPath += tmp; //URI moze skladac sie z kilku segmentow
+          Serial.print(F("URI-Path: "));
+          Serial.println(uriPath);
         }
 
+
+
+        ///SWITCH OPCJI
+
         //Content-Format
-        else if(optionNum == 12)
+        else if (optionNum == 12)
         {
           uint16_t contentType; //Tu bedzie przechowana zawartosc opcji
 
           Serial.println("Option: Content-Format");
 
-         if (optionLen == 0)
+          if (optionLen == 0)
           {
             Serial.println(F("Content-type option length is zero: assuming text/plain"));
             //Copper robil tak zamiast wysylac zero. Stad takie zalozenie (nie do konca zgodne z RFC)
@@ -246,7 +254,6 @@ void loop()
 
           contentFormat = contentType;
         }
-        
 
         else if (optionNum == 17)
         //Accept (czyli jaka reprezentacje woli klient)
@@ -254,7 +261,6 @@ void loop()
           uint16_t contentType; //Tu bedzie przechowana zawartosc opcji
 
           Serial.println(F("Option: Accept"));
-
 
           if (optionLen == 0)
           {
@@ -279,8 +285,6 @@ void loop()
 
           if (contentType == 0)
             Serial.println(F("plain text\n"));
-          else if (contentType == 40)
-            Serial.println(F("application/link-format\n"));
           else
             Serial.println(F("Given format not supported"));
           //reszta formatow raczej nas nie obchodzi
@@ -297,37 +301,59 @@ void loop()
       }
     }
 
-    if(uriPath == "/.well-known/core")
+    if (uriPath == "/.well-known/core")
     {
-         CoapHeader h(1, 1, header.tokenLen, 2, 5, header.mid);
-         CoapMessage m(h, _token);
-         m.SetContentFormat(40);
-         String var = "</metryka>;if=metryka";
-         m.SetPayload(var);
-         m.Send(Udp);
+      CoapHeader h(1, 1, header.tokenLen, 2, 5, header.mid);
+      CoapMessage m(h, _token);
+      m.SetContentFormat(40);
+      String var = "</ReceivedB>;</SendB>;</TotalB>";
+      m.SetPayload(var);
+      resources.Send(m.GetPacketLen());
+      m.Send(Udp);
     }
 
-      Serial.println("\n-------PAYLOAD---------");
+    int tmp = resources.GetResource(uriPath);
 
-      uint8_t payloadLen = len - payloadMarker;
-      uint8_t payload[payloadLen];
+    if (tmp != -1)
+    {
+      Serial.println("");
+      Serial.print("RECEIVED: ");
+      Serial.println(resources.bytesReceived);
+      Serial.print("SEND: ");
+      Serial.println(resources.bytesSend);
+      Serial.print("TOTAL: ");
+      Serial.println(resources.bytesTotal);
 
-      if(payloadMarker > 0)
-      {
-        Serial.print(F("Payload: 0x"));
-        for(int i = 0; i<payloadLen; i++)
-        {
-          payload[i] = packetBuffer[payloadMarker+i];
-          Serial.print(payload[i], HEX);
-        }
-        Serial.print(F(" = "));
-            for(int i=0; i < payloadLen; ++i)
-              Serial.print((char)payload[i]);
-        Serial.println();
-      }
-      else 
-        Serial.println("No payload found");
+      CoapHeader h(1, 1, header.tokenLen, 2, 5, header.mid);
+      CoapMessage m(h, _token);
+
+      if(acceptFormat != 0xFFFF)
+          m.SetContentFormat(0);
+        m.SetPayload(tmp);
+        resources.Send(m.GetPacketLen());
+        m.Send(Udp);
       
     }
-  
+
+    Serial.println("\n-------PAYLOAD---------");
+
+    uint8_t payloadLen = len - payloadMarker;
+    uint8_t payload[payloadLen];
+
+    if (payloadMarker > 0)
+    {
+      Serial.print(F("Payload: 0x"));
+      for (int i = 0; i < payloadLen; i++)
+      {
+        payload[i] = packetBuffer[payloadMarker + i];
+        Serial.print(payload[i], HEX);
+      }
+      Serial.print(F(" = "));
+      for (int i = 0; i < payloadLen; ++i)
+        Serial.print((char)payload[i]);
+      Serial.println();
+    }
+    else
+      Serial.println("No payload found");
+  }
 }
