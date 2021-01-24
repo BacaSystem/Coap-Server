@@ -2,6 +2,7 @@
 #include <ObirEthernet.h>    //biblioteka niezbedna dla klasy 'ObirEthernetUDP'
 #include <ObirEthernetUdp.h> //biblioteka z klasa 'ObirEthernetUDP'
 
+
 #include "coap.h" //biblioteka coap zawierajaca rozne typy zmiennych
 
 #define UDP_SERVER_PORT 1234 //port z ktoego korzystamy w tym projekcie
@@ -103,7 +104,7 @@ void loop()
 
     int marker = 4 + _token_len; // 4bajty naglowka + dlugosc tokena
 
-    //int payloadMarker = -1;      //Znacznik polozenia payloadu (w bajtach)
+    int payloadMarker = -1;      //Znacznik polozenia payloadu (w bajtach)
 
     /*Ustawiony na -1, zeby wykryc blad*/
 
@@ -127,7 +128,7 @@ void loop()
 
     Serial.println(F("Options: "));
 
-    while (packetBuffer[marker] != 0xFF && packetBuffer[marker] != '\0') //Dopoki nie znajdzie sie payload albo nie skonczy ramka
+    while (packetBuffer[marker] != '\0') //Dopoki nie znajdzie sie payload albo nie skonczy ramka
     {
       delta = (packetBuffer[marker] & 0xF0) >> 4;   //Maska na pierwsze 4 bity
       optionLen = (packetBuffer[marker++] & 0x0F); //Maska na kolejne 4 bity
@@ -152,8 +153,9 @@ void loop()
         //++marker;
       }
 
-      // else if (delta == 15) //Trafiono na marker payloadu
-      //   payloadMarker = marker;
+      else if (delta == 15){ //Trafiono na marker payloadu
+        payloadMarker = marker;
+      }
 
       //Czytanie payloadu potem (po petli while), dla ulatwienia
 
@@ -294,5 +296,38 @@ void loop()
         }
       }
     }
-  }
+
+    if(uriPath == "/.well-known/core")
+    {
+         CoapHeader h(1, 1, header.tokenLen, 2, 5, header.mid);
+         CoapMessage m(h, _token);
+         m.SetContentFormat(40);
+         String var = "</metryka>;if=metryka";
+         m.SetPayload(var);
+         m.Send(Udp);
+    }
+
+      Serial.println("\n-------PAYLOAD---------");
+
+      uint8_t payloadLen = len - payloadMarker;
+      uint8_t payload[payloadLen];
+
+      if(payloadMarker > 0)
+      {
+        Serial.print(F("Payload: 0x"));
+        for(int i = 0; i<payloadLen; i++)
+        {
+          payload[i] = packetBuffer[payloadMarker+i];
+          Serial.print(payload[i], HEX);
+        }
+        Serial.print(F(" = "));
+            for(int i=0; i < payloadLen; ++i)
+              Serial.print((char)payload[i]);
+        Serial.println();
+      }
+      else 
+        Serial.println("No payload found");
+      
+    }
+  
 }
