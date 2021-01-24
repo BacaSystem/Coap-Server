@@ -1,6 +1,7 @@
 #include <ObirDhcp.h>        //bilioteka ktora umozliwia pobranie IP z DHCP - platforma dla ebsim'a
 #include <ObirEthernet.h>    //biblioteka niezbedna dla klasy 'ObirEthernetUDP'
 #include <ObirEthernetUdp.h> //biblioteka z klasa 'ObirEthernetUDP'
+#include <ObirFeatures.h>
 
 #include "coap.h" //biblioteka coap zawierajaca rozne typy zmiennych
 #include "resources.h"
@@ -276,14 +277,18 @@ void loop()
                         CoapHeader h(1, 2, 0, 0, 0, header.mid);
                         //CoapHeader h(1, 1, header.tokenLen, 2, 5, header.mid+1);
                         CoapMessage m(h, NULL);
-
-                        
-                        //m.OmitPayload();
                         resources.Send(m.GetPacketLen());
                         m.Send(Udp);
+
+                        delay(10000);
+                        CoapHeader hres(1, 1, header.tokenLen, 2, 5, serverMid);
+                        CoapMessage mres(hres, token);
+                        mres.SetPayload(String(result));
+                        resources.Send(mres.GetPacketLen());
+                        mres.Send(Udp);
                     }
                 }
-                else if(codeDetail == 0)
+                else if(codeDetail == 0)  // -----> PING
                 {
                     CoapHeader h(1, 2, 0, 0, 0, header.mid);
                     CoapMessage m(h, NULL);
