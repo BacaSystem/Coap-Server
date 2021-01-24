@@ -54,23 +54,21 @@ class CoapMessage{
     }
     //CoapMessage(CoapHeader& h, uint8_t* token, uint8_t* payload, uint8_t payloadLen);
 
-
-    void SetToken(uint8_t* token)
-    {
-        for (int i = 0; i < header.tokenLen; i++)
-            packet[4+i] = token[i];
-        actualSize += header.tokenLen;
-    }
-
     void SetContentFormat(uint8_t cf)
     {
-        packet[actualSize++] = 0b11000001;//(0xF0 & 12) >>4 | (0x0F & 1); - To dziadostwo nie chce dziaslac
+        packet[actualSize++] = 0b11000001; //(0xF0 & 12) << 4 | (0x0F & 1); - To dziadostwo nie chce dziaslac
         packet[actualSize++] = (0xFF & cf);
     }
 
-    void SetPayload(uint8_t payload[], uint8_t payloadLen)
+    void OmitPayload()
     {
-        packet[actualSize++] = 0xFF; //1111111
+        packet[actualSize++] = 0xFF; //11111111
+        packet[actualSize] = '\0';
+    }
+
+    void SetPayload(uint8_t* payload, uint8_t payloadLen)
+    {
+        packet[actualSize++] = 0xFF; //11111111
 
         for (int i = 0; i < payloadLen; i++)
         {
@@ -82,14 +80,9 @@ class CoapMessage{
 
     void SetPayload(String message)
     {
-        uint8_t txt[60 + 1];
-        message.toCharArray(txt, message.length() + 1);
-        SetPayload(txt, message.length());
-    }
-
-    void SetPayload(int integer)
-    {
-        SetPayload(String(integer));
+        uint8_t payloadContent[PACKET_SIZE - actualSize + 1];
+        message.toCharArray(payloadContent, message.length() + 1);
+        SetPayload(payloadContent, message.length());
     }
 
     void Send(ObirEthernetUDP& udp)
@@ -97,18 +90,11 @@ class CoapMessage{
         udp.beginPacket(udp.remoteIP(), udp.remotePort());
         udp.write(packet, actualSize);
         udp.endPacket();
-
         actualSize = 0;
-        
     }
 
     int GetPacketLen()
     {
         return actualSize;
     }
-
-
-    // uint8_t* token;
-    // CoapOption options [6];
-
 };

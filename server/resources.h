@@ -2,6 +2,42 @@
     https://www.techiedelight.com/graph-implementation-c-without-using-stl/
 */
 
+class Resources
+{
+public:
+    int bytesReceived = 0;
+    int bytesSend = 0;
+    int bytesTotal = 0;
+
+    String receivedStr = "/ReceivedB";
+    String sendStr = "/SendB";
+    String totalStr = "/TotalB";
+
+    resources() {}
+
+    void Received(int bytes) { bytesReceived += bytes; bytesTotal += bytes;}
+    void Send(int bytes) { bytesSend += bytes; bytesTotal += bytes;}
+
+    int GetLongResource(String uriPath)
+    {
+        if(uriPath == totalStr)
+            return bytesTotal;
+        else
+            return -1;
+    }
+
+    int GetResource(String uriPath)
+    {
+        if(uriPath == receivedStr)
+            return bytesReceived;
+        else if(uriPath == sendStr)
+            return bytesSend;
+        else if(uriPath == totalStr)
+            return bytesTotal;
+        else
+            return -1;
+    }
+};
 
 #pragma region Graph
 
@@ -127,32 +163,3 @@
 // }
 
 #pragma endregion Graph
-
-class Resources
-{
-public:
-    int bytesReceived = 0;
-    int bytesSend = 0;
-    int bytesTotal = 0;
-
-    String receivedStr = "/ReceivedB";
-    String sendStr = "/SendB";
-    String totalStr = "/TotalB";
-
-    resources() {}
-
-    void Received(int bytes) { bytesReceived += bytes; bytesTotal += bytes;}
-    void Send(int bytes) { bytesSend += bytes; bytesTotal += bytes;}
-
-    int GetResource(String uriPath) 
-    {
-        if(uriPath == receivedStr)
-            return bytesReceived;
-        else if(uriPath == sendStr)
-            return bytesSend;
-        else if(uriPath == totalStr)
-            return bytesTotal;
-        else
-            return -1;
-    }
-};
