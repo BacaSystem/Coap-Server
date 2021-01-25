@@ -287,7 +287,8 @@ void loop()
                 }
                 else if(codeDetail == 3) // ----> PUT
                 {
-                    if(true)
+                    String result = resources.GetResource(uriPath);
+                    if(result == "/Graph")
                     {
                         int from = -1, to = -1;
                         bool firstDigit = false;
@@ -326,14 +327,28 @@ void loop()
                             m.Send(Udp);
                         }
                     }
-                    //Serial.println(payloadLen, DEC);
-                    // Serial.println((char)payload[0]);
-                    // Serial.println((char)payload[1]);
+                    else
+                    {
+                        CoapHeader h(1, 1, header.tokenLen, 4, 5, serverMid);
+                        CoapMessage m(h, token);
+                        resources.Send(m.GetPacketLen());
+                        m.Send(Udp);
+                    }
+                    
+                    
                 }
+                else // -----> other than GET and PUT - not implemented
+                {
+                    CoapHeader h(1, 1, header.tokenLen, 5, 1, serverMid);
+                    CoapMessage m(h, token);
+                    resources.Send(m.GetPacketLen());
+                    m.Send(Udp);
+                }
+                
                 
             }
         }
-        if(type == 0) // ----->CON
+        else if(type == 0) // ----->CON
         {
             if(codeClass == 0) // ----->request
             {
@@ -372,5 +387,13 @@ void loop()
                 }
             }
         }
+        else // ----> Other than CON and NON send Unimplemented
+        {
+            CoapHeader h(1, 1, header.tokenLen, 5, 1, serverMid);
+            CoapMessage m(h, token);
+            resources.Send(m.GetPacketLen());
+            m.Send(Udp);
+        }
+        
     }
 }

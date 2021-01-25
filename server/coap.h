@@ -60,12 +60,6 @@ class CoapMessage{
         packet[actualSize++] = (0xFF & cf);
     }
 
-    void OmitPayload()
-    {
-        packet[actualSize++] = 0xFF; //11111111
-        packet[actualSize] = '\0';
-    }
-
     void SetPayload(uint8_t* payload, uint8_t payloadLen)
     {
         packet[actualSize++] = 0xFF; //11111111
