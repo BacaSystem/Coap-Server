@@ -9,8 +9,9 @@ public:
     */
     class Graph
     {
-        uint8_t N;                                                        //Ilosc wezlow w grafie
+        uint8_t N;                                                              //Ilosc wezlow w grafie
         uint8_t **adjList;                                                      //Lista sasiedztwa (tablica 2 wymiarowa)
+        uint8_t edgesCounter = 0;                                               //Licznik krawedzi
   
         public:
         Graph(const uint8_t n)                                                  //Konstruktor grafu przyjmuje ilosc wezlow jako parametr
@@ -34,11 +35,14 @@ public:
                 return false;            
             else if(adjList[from][to] == 1)                                     //Walidaja danych (czy takie polaczenie juz istnieje)
                 return false;
-            else
+            else if(edgesCounter < 7)
             {
                 adjList[from][to] = 1;                                          //Dodanie polaczenia miedzy wezlami from" -> "to"
+                edgesCounter++;                                                 //Zwiekszamy licznik krawedzi
                 return true;
             }
+            else                                                                //Zapelniona pamiec na krawedzie
+                return false;
         }
 
         String GetGraph()                                                       //Funkcja prezentujaca graf jako zbior polaczen w formacie "(X:Y); (W:Z);"

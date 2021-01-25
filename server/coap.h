@@ -9,10 +9,10 @@
 
 class CoapHeader{                                                              //Klasa reprezentujaca naglowek wiadomosci COAP
   public:
-    uint8_t ver;                                                                   // 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-    uint8_t type;                                                                  //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    uint8_t tokenLen;                                                              //|Ver| T |  TKL  |  Class/Code  |           Message ID           |
-    uint8_t coapClass;                                                             //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    uint8_t ver;                                                               // 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    uint8_t type;                                                              //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    uint8_t tokenLen;                                                          //|Ver| T |  TKL  |  Class/Code  |           Message ID           |
+    uint8_t coapClass;                                                         //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     uint8_t coapCode;
     uint16_t mid;
 

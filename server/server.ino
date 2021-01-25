@@ -15,7 +15,7 @@ byte MAC[] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};                              
 uint8_t packetBuffer[PACKET_SIZE];                                                             //Tablica bajtow do ktorej bedzie zapisywana przychodzaca wiadomosc o dlugosci pakietu
 uint16_t serverMid = 0x000A;                                                                   //MessageID serwera, zwiekszana z kazda wyslana wiadomoscia
 
-Resources resources(6);                                                                        //Obiekt zasobow, inicjowany z wartoscia 6 -> Tworzy graf o 6. wezlach
+Resources resources(4);                                                                        //Obiekt zasobow, inicjowany z wartoscia 6 -> Tworzy graf o 6. wezlach
 ObirEthernetUDP Udp;                                                                           //Obiekt klasy 'ObirEthernetUDP' do transmisji pakietow UDP
 
 void PrintHeader(CoapHeader &header)                                                           //Funkcja wypisujaca naglowek obslugiwanej wiadomosci
@@ -300,7 +300,7 @@ void loop()                                                                     
                         {
                             CoapHeader h(1, 1, header.tokenLen, 4, 0, serverMid);              //Obiekt naglowka z odpowiadajacym kodem 4.00 -> (Client Error Response Bad Request)
                             CoapMessage m(h, token);                                           //Obiek wiadomosci zawierajacy naglowek i odpowiadajacy token (ten sam co w zadaniu)
-                            m.SetPayload("Not valid syntax or edge already exists.");          //Ustawiamy payload wiadomosci zawierajacy komunikat o bledzie
+                            m.SetPayload("Can not add new Edge.");                             //Ustawiamy payload wiadomosci zawierajacy komunikat o bledzie
                             resources.Send(m.GetPacketLen());                                  //Aktualizujaca stanu metryki "sendBytes" o ilosc wyslanych bajtow
                             m.Send(Udp);                                                       //Wyslanie wypelnionej wiadomosci jako odpowiedz serwera
                         }
