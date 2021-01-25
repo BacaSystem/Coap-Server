@@ -1,22 +1,29 @@
 /*
-Biblioteka Coap na potrzeby przedmiotu OBIR
+    Biblioteka Coap na potrzeby przedmiotu OBIR
+    Zawiera definicje naglowka wiadomosci oraz samej wiadomosci
 */
 #pragma once
 #include <stdint.h>
 
-#define PACKET_SIZE 60
+#define PACKET_SIZE 60                                                         //Maksymalny rozmiar pakietu UDP
 
-class CoapHeader{
+class CoapHeader{                                                              //Klasa reprezentujaca naglowek wiadomosci COAP
   public:
-    uint8_t ver;
-    uint8_t type;
-    uint8_t tokenLen;
-    uint8_t coapClass;
+    uint8_t ver;                                                                   // 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    uint8_t type;                                                                  //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    uint8_t tokenLen;                                                              //|Ver| T |  TKL  |  Class/Code  |           Message ID           |
+    uint8_t coapClass;                                                             //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     uint8_t coapCode;
     uint16_t mid;
 
-    CoapHeader(){}
-    CoapHeader(uint8_t ver, uint8_t type, uint8_t tokenLen, uint8_t coapClass, uint8_t coapCode, uint16_t mid)
+CoapHeader(){}                                                                 //Pusty konstruktor domyślny
+CoapHeader(                                                                    //Konstruktor klasy naglowka
+        uint8_t ver, 
+        uint8_t type, 
+        uint8_t tokenLen, 
+        uint8_t coapClass, 
+        uint8_t coapCode, 
+        uint16_t mid)
     {
         this->ver = ver;
         this->type = type;
@@ -27,67 +34,62 @@ class CoapHeader{
     }
 };
 
-class CoapMessage{
+class CoapMessage{                                                             //Klasa reprezentujaca cala wiadomosc Coap (wraz z naglowkiem, opcjami i zawartoscia)
 
-    CoapHeader header;
-    uint8_t packet[PACKET_SIZE];
-    unsigned int actualSize = 0;
-
+    CoapHeader header;                                                         //Naglowek wiadomosci
+    uint8_t packet[PACKET_SIZE];                                               //Cala wiadomosc Coap o rozmiarze 60B (wraz z naglowkiem, opcjami i zawartoscia)
+    unsigned int actualSize = 0;                                               //Rzeczywisty rozmiar wiadomosci Coap (wraz z naglowkiem, opcjami i zawartoscia)
 
     public:
-    //CoapMessage() { }
-    //CoapMessage(CoapHeader& h) { SetHeader(h); }
-    CoapMessage(CoapHeader& h, uint8_t* token)
-    { //SetHeader(h); SetToken(token);
+    CoapMessage(CoapHeader& h, uint8_t* token)                                 //Konstruktor dla wiadomosci Coap. Wpisuje naglowek oraz token.
+    {
         header = h;
+        packet[0] = (1 << 6) | (header.type << 4) | (header.tokenLen);         //Ustawianie (1)wersji , (header.type)typu wiadomosci i (header.tokenLen) dlugosci tokenu
+        packet[1] = (header.coapClass << 5) | (header.coapCode);               //Ustawianie (header.coapClass)klasy wiadomosci i (header.coapCode)kodu wiadomosci, np. 0.1 -> request GET
+        packet[2] = (0xFF00 & header.mid) >> 8;                                //Ustawianie (header.mid)MessageID na drugim bajcie.
+        packet[3] = (0x00FF) & header.mid;                                     //Ustawianie (header.mid)MessageID na pierwszym bajcie.
 
-        packet[0] = (1 << 6) | (header.type << 4) | (header.tokenLen);
-        packet[1] = (header.coapClass << 5) | (header.coapCode);
-        packet[2] = (0xFF00 & header.mid) >> 8;
-        packet[3] = (0x00FF) & header.mid;
-
-        actualSize = 4;
+        actualSize = 4;                                                        //Ustalenie wielkosci pakietu po zapelnieniu naglowka (4bajty)
 
         for (int i = 0; i < header.tokenLen; i++)
-            packet[actualSize + i] = token[i];
-        actualSize += header.tokenLen;
-    }
-    //CoapMessage(CoapHeader& h, uint8_t* token, uint8_t* payload, uint8_t payloadLen);
-
-    void SetContentFormat(uint8_t cf)
-    {
-        packet[actualSize++] = 0b11000001; //(0xF0 & 12) << 4 | (0x0F & 1); - To dziadostwo nie chce dziaslac
-        packet[actualSize++] = (0xFF & cf);
+            packet[actualSize + i] = token[i];                                 //Ustawienie tokena o dlugosci podanej w naglowku TKL
+        actualSize += header.tokenLen;                                         //Rozszerzenie rozmiaru wiadomosci o dl. tokena
     }
 
-    void SetPayload(uint8_t* payload, uint8_t payloadLen)
+    void SetContentFormat(uint8_t cf)                                          //Funkcja wpisujaca opcje Content-Format do wiadomosci (zakladamy tylko 1. opcje)
     {
-        packet[actualSize++] = 0xFF; //11111111
+        packet[actualSize++] = 0b11000001; //(0xF0 & 12) << 4 | (0x0F & 1);    //Ustawienie Delta = 12 oraz OptionLen = 1 zapisane w kodzie bin. na jednym bajcie
+        packet[actualSize++] = (0xFF & cf);                                    //Ustawienie wartosci opcji Content-Format
+    }
+
+    void SetPayload(uint8_t* payload, uint8_t payloadLen)                      //Funkcja wpisujaca tablice bajtow o podanej dlugosci jako payload wiadomosci Coap
+    {
+        packet[actualSize++] = 0xFF;                                           //Wstawianie Markera payloadu (11111111)
 
         for (int i = 0; i < payloadLen; i++)
         {
-            packet[actualSize + i] = payload[i];
+            packet[actualSize + i] = payload[i];                               //Wpisywanie podanej tablicy bajtow jako payload wiadomosci
         }
-        actualSize += payloadLen;
-        packet[actualSize] = '\0';
+        actualSize += payloadLen;                                              //Rozszerzenie rozmiaru wiadomosci o dl. payloadu
+        packet[actualSize] = '\0';                                             //Wstawienie znaku konca wiadomosci ('\0')
     }
 
-    void SetPayload(String message)
+    void SetPayload(String message)                                            //Funkcja wpisujaca string jako payload wiadomosci
     {
-        uint8_t payloadContent[PACKET_SIZE - actualSize + 1];
-        message.toCharArray(payloadContent, message.length() + 1);
-        SetPayload(payloadContent, message.length());
+        uint8_t payloadContent[PACKET_SIZE - actualSize + 1];                  //Tworzenie tablice bajtow o rozmiarze pozostalym do wypelnienia przez payload  (60B - rozm reszty + 1)
+        message.toCharArray(payloadContent, message.length() + 1);             //Mapowanie stringa na tablice bajtow o rozmiarze stringa
+        SetPayload(payloadContent, message.length());                          //Wywolanie funkcji SetPayload
     }
 
-    void Send(ObirEthernetUDP& udp)
+    void Send(ObirEthernetUDP& udp)                                            //Funkcja wysylajaca cala wiadomosc Coap za pomoca obiektu ObirEthernetUDP
     {
-        udp.beginPacket(udp.remoteIP(), udp.remotePort());
-        udp.write(packet, actualSize);
-        udp.endPacket();
-        actualSize = 0;
+        udp.beginPacket(udp.remoteIP(), udp.remotePort());                     //Poczatek tworzenia ramki UDP
+        udp.write(packet, actualSize);                                         //Wpisanie do ramki wiadomosci Coap
+        udp.endPacket();                                                       //Koniec tworzenia ramki UDP - wyslanie wiadomosci
+        actualSize = 0;                                                        //Reset rozmiaru wiadomosci Coap
     }
 
-    int GetPacketLen()
+    int GetPacketLen()                                                         //Funkcja zwracajaca aktualny rozmiar wiadomosci Coap (wraz z naglowkiem, opcjami i zawartoscia)
     {
         return actualSize;
     }
