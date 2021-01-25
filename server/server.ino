@@ -5,12 +5,15 @@
 
 #include "coap.h" //biblioteka coap zawierajaca rozne typy zmiennych
 #include "resources.h"
-Resources resources;
+
 
 #define UDP_SERVER_PORT 1234 //port z ktoego korzystamy w tym projekcie
 #define PACKET_SIZE 60 //dlugosc pakietu z danymi dla/z UDP
 
 #define URIPATH_MAX_SIZE 255
+#define NO_GRAPH_NODES 6
+
+Resources resources(NO_GRAPH_NODES);
 
 byte MAC[] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}; //MAC adres karty sieciowej, to powinno byc unikatowe - proforma dla ebsim'a
 
@@ -203,7 +206,6 @@ void loop()
                     acceptFormat << 8;
                     acceptFormat = acceptFormat | packetBuffer[marker++];
                 }
-                Serial.println(acceptFormat);
                 if (acceptFormat == 0)
                     Serial.println(F("plain text"));
                 else if (acceptFormat == 40)
@@ -215,11 +217,18 @@ void loop()
             }
         }
 
+       uint8_t payloadLen = 0;
+
+        if (payloadMarker > 0)
+            payloadLen = len - payloadMarker;
+        else 
+            payloadLen = 0;
+
+       uint8_t payload[payloadLen];
+
         Serial.println("\n-------PAYLOAD---------");
         if (payloadMarker > 0)
         {
-            uint8_t payloadLen = len - payloadMarker;
-            uint8_t payload[payloadLen];
 
             Serial.print(F("Payload: "));
             for (int i = 0; i < payloadLen; i++)
@@ -231,6 +240,8 @@ void loop()
         }
         else
             Serial.println("No payload found");
+
+        payloadMarker = -1;
 
         //REAGOWANIE
 
@@ -245,24 +256,81 @@ void loop()
                         CoapHeader h(1, 1, header.tokenLen, 2, 5, serverMid);
                         CoapMessage m(h, token);
                         m.SetContentFormat(40);
-                        String var = "</ReceivedB>;</SendB>;</TotalB>";
+                        String var = "</ReceivedB>;</SendB>;</TotalB></Graph>";
                         m.SetPayload(var);
                         resources.Send(m.GetPacketLen());
                         m.Send(Udp);
                     }
-                    int result = resources.GetResource(uriPath);
-                    if (result != -1)
+                    else
                     {
-                        CoapHeader h(1, 1, header.tokenLen, 2, 5, serverMid);
-                        CoapMessage m(h, token);
-
-                        if(acceptFormat != 0xFFFF)
-                            m.SetContentFormat(0);
-                        m.SetPayload(String(result));
-                        resources.Send(m.GetPacketLen());
-                        m.Send(Udp);
+                        String result = resources.GetResource(uriPath);
+                        if (result != "")
+                        {
+                            CoapHeader h(1, 1, header.tokenLen, 2, 5, serverMid);
+                            CoapMessage m(h, token);
+    
+                            if(acceptFormat != 0xFFFF)
+                                m.SetContentFormat(0);
+                            m.SetPayload(result);
+                            resources.Send(m.GetPacketLen());
+                            m.Send(Udp);
+                        }
+                        else
+                        {
+                            CoapHeader h(1, 1, header.tokenLen, 4, 4, serverMid);
+                            CoapMessage m(h, token);
+                            resources.Send(m.GetPacketLen());
+                            m.Send(Udp);
+                        }
                     }
+                    
                 }
+                else if(codeDetail == 3) // ----> PUT
+                {
+                    if(true)
+                    {
+                        int from = -1, to = -1;
+                        bool firstDigit = false;
+                        Serial.println(F("PUT"));
+                        for (int i = 0; i < payloadLen; i++)
+                        {
+                            if(payload[i]>='0' && payload[i]<= '9')
+                            {
+                                if(!firstDigit)
+                                {
+                                    from = payload[i] - 48; // bo conwertujemy char to int
+                                    firstDigit = true;
+                                }
+                                else 
+                                    to = payload[i] - 48;
+                            }
+                        }
+                        Serial.println(from);
+                        Serial.println(to);
+
+                        bool succes = resources.graph->AddEdge(from, to);
+                        if(succes)
+                        {
+                            CoapHeader h(1, 1, header.tokenLen, 2, 1, serverMid);
+                            CoapMessage m(h, token);
+                            m.SetPayload("Edge was added.");
+                            resources.Send(m.GetPacketLen());
+                            m.Send(Udp);
+                        }
+                        else
+                        {
+                            CoapHeader h(1, 1, header.tokenLen, 4, 0, serverMid);
+                            CoapMessage m(h, token);
+                            m.SetPayload("Not valid syntax or edge already exists.");
+                            resources.Send(m.GetPacketLen());
+                            m.Send(Udp);
+                        }
+                    }
+                    //Serial.println(payloadLen, DEC);
+                    // Serial.println((char)payload[0]);
+                    // Serial.println((char)payload[1]);
+                }
+                
             }
         }
         if(type == 0) // ----->CON
@@ -271,8 +339,8 @@ void loop()
             {
                 if(codeDetail == 1) // ------>GET
                 {
-                    int result = resources.GetLongResource(uriPath);
-                    if (result != -1)
+                    String result = resources.GetLongResource(uriPath);
+                    if (result != "")
                     {
                         CoapHeader h(1, 2, 0, 0, 0, header.mid);
                         //CoapHeader h(1, 1, header.tokenLen, 2, 5, header.mid+1);
@@ -283,9 +351,16 @@ void loop()
                         delay(10000);
                         CoapHeader hres(1, 1, header.tokenLen, 2, 5, serverMid);
                         CoapMessage mres(hres, token);
-                        mres.SetPayload(String(result));
+                        mres.SetPayload(result);
                         resources.Send(mres.GetPacketLen());
                         mres.Send(Udp);
+                    }
+                    else
+                    {
+                        CoapHeader h(1, 1, header.tokenLen, 4, 0, serverMid);
+                        CoapMessage m(h, token);
+                        resources.Send(m.GetPacketLen());
+                        m.Send(Udp);
                     }
                 }
                 else if(codeDetail == 0)  // -----> PING
